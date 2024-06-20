@@ -18,14 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #define DATA_SIZE 25 // Dimensione dell'array dei dati
 double freq=0;
 int cont=0;
-double mean=0;
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -82,9 +81,11 @@ static void MX_ADC1_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	unsigned int uiAnalogData=0;
-	uint32_t buffertx[6];
-
+	 unsigned int uiAnalogData[DATA_SIZE];
+	  char buffertx[50];
+	  double mean = 0;
+	  double sum = 0;
+	  int cont = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -132,30 +133,34 @@ int main(void)
 
 	  sprintf(buffertx, "%.2f\n", uiAnalogData);
 	  HAL_UART_Transmit(&huart2, buffertx, 6, 1000);*/
+	  while(cont < DATA_SIZE) {
+	       HAL_ADC_Start(&hadc1);
+	       if(HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK) {
+	         uiAnalogData[cont] = HAL_ADC_GetValue(&hadc1);
+	         sum += uiAnalogData[cont];
+	         cont++;
+	       }
+	       HAL_ADC_Stop(&hadc1);
+	       HAL_Delay(100);
+	     }
+	     if (cont == DATA_SIZE) {
+	       mean = sum / DATA_SIZE;
 
-	  HAL_ADC_Start(&hadc1); //stampo i valori arduino sulla seriale
-	  HAL_ADC_PollForConversion(&hadc1, 1000);
-	  uiAnalogData = HAL_ADC_GetValue(&hadc1);
-	  HAL_ADC_Stop(&hadc1);
+	       sprintf(buffertx, "Media: %.2f\n", mean); // Print the mean value
+	       HAL_UART_Transmit(&huart2, (uint8_t*)buffertx, strlen(buffertx), 1000);
 
-	  HAL_Delay(100);
-
-	  //sprintf(buffertx, "%u\n", uiAnalogData);
-	  freq=freq+uiAnalogData; //sommo la freq iniziale settata a 0 con i valori dell'ADC
-	  cont++; //aumento la variabile cont ad ogni iterazione
-
-	  mean=freq/cont; // faccio la media della freq
-
-	  sprintf(buffertx, "Media: %u\n", mean); //stampo la media finale
-	  HAL_UART_Transmit(&huart2, (uint8_t*)buffertx, strlen(buffertx), 3000);
-
-
+	       // Reset for next batch
+	       sum = 0;
+	       mean = 0;
+	       cont = 0;
+	     }
 
 
   }
 
-  }
+
   /* USER CODE END 3 */
+}
 
 /**
   * @brief System Clock Configuration
@@ -242,7 +247,7 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_14;
+  sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
